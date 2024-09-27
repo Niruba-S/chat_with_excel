@@ -12,6 +12,8 @@ import requests
 import streamlit.components.v1 as components
 import pygwalker as pyg
 import time
+import numpy as np
+import base64
 
 # Load the .env file
 load_dotenv()
@@ -97,7 +99,11 @@ st.markdown("""
     .st-emotion-cache-1pajqs2 {
         border: 1px solid rgb(243, 120, 43); /* Adds orange border */
         box-shadow: 0 0 5px rgba(255, 165, 0, 0.1) !important;
+        background-color: #FFFFFF;
     }
+    .st-emotion-cache-ugcgyn.eczjsme11 {
+    background-color: white;
+}
     .st-emotion-cache-10trblm{
         font-size: 30px;
         font-weight: bold;
@@ -107,6 +113,11 @@ st.markdown("""
             
 
     }      
+    .assistant-message {
+        font-family: Arial, sans-serif;  /* Set your desired font here */
+        font-size: 16px;  /* Adjust the font size if needed */
+        color: #333333;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -295,79 +306,91 @@ def clean_and_validate_code(df,code):
     else:
         st.error("Failed to validate code structure. Please try again.")
         return None
+    
+
+def generate_dataset_overview(df):
+    # Generate basic information about the dataset
+    num_rows, num_cols = df.shape
+    column_names = df.columns.tolist()
+    sample_data = df.head().to_string()
+
+    # Prepare the prompt for Claude
+    prompt = f"""You are a data analyst providing a brief overview of a dataset. Given the following information about a dataset, provide a concise 3-4 line overview that describes what this data is about and its potential use:
+
+    - Number of rows: {num_rows}
+    - Number of columns: {num_cols}
+    - Column names: {', '.join(column_names)}
+    - Sample data (first 5 rows):
+    {sample_data}
+
+    Please provide a brief, informative overview that gives the user a quick understanding of what this dataset represents, what kind of information it contains, and what it might be used for. Focus on the nature and context of the data rather than just its structure.
+
+    Your response should be in the following format:
+    OVERVIEW: [Your 3-4 line overview here]
+    """
+
+    # Get response from Claude
+    response = invoke_claude(prompt)
+
+    # Extract the overview from Claude's response
+    overview_match = re.search(r'OVERVIEW:(.*)', response, re.DOTALL)
+    if overview_match:
+        overview = overview_match.group(1).strip()
+    else:
+        overview = "Unable to generate overview. Please check the dataset and try again."
+
+    return overview
+
 
 def query_data(df, query):
-    # Perform general data analysis
-    data_summary = df.describe().to_string()
-    columns_info = df.dtypes.to_string()
-    
-    # Generate some general statistics and insights
+ 
+    # Prepare basic dataset information
     total_rows = len(df)
     total_columns = len(df.columns)
     column_names = ", ".join(df.columns)
     
-    # Sample some actual data (first 5 rows)
-    sample_data = df.head().to_string()
     
-    # Generate some basic insights
-    numeric_columns = df.select_dtypes(include=['int64', 'float64']).columns
-    categorical_columns = df.select_dtypes(include=['object']).columns
     
-    insights = []
-    for col in numeric_columns:
-        insights.append(f"{col}: Mean = {df[col].mean():.2f}, Max = {df[col].max()}, Min = {df[col].min()}")
     
-    for col in categorical_columns:
-        top_category = df[col].value_counts().index[0]
-        insights.append(f"{col}: Most common value = {top_category}")
+
+
+
+    prompt = f"""You are a data analyst providing concise answers to queries about a dataset. Use the following information about the dataset to answer the query:
+
+    Dataset Info:
+    - Total rows: {total_rows}
+    - Total columns: {total_columns}
+    - Columns: {column_names}
+
+
+
     
-    insights_str = "\n".join(insights)
 
-    prompt = f"""You are a professional data analyst specializing in sales data analysis. 
-    Given the following sales data information:
+    Respond to this query: {query}
+    Guidelines for your response:
+    1. Thoroughly analyze the entire dataset before answering the query.
+    2. Perform relevant statistical analyses based on the query.
+    3. Provide a direct, concise answer without unnecessary explanations.
+    4. Include relevant numbers and statistics from the data.
+    5. If the query can't be answered with the given information, say so briefly.
+    6. Keep your response to 2-3 sentences maximum.
+    7. Cite specific data from the DataFrame when answering the query (e.g., referencing actual values from columns).
+    8. Speak as a data analyst would, focusing on facts and insights.Let the answer be more human like rather than a chatbot.
+    9.**Important**- Font Consistency:To ensure consistent formatting, the font used for the entire response should be uniform across all parts.
+    10. Provide the answer for the query and then cite the data source.
+    Format:
+    [Your answer here]
+    **SOURCE**: [Citation of the data source]
 
-    Data Summary:
-    {data_summary}
+    Your response:
+    """
 
-    Columns and their types:
-    {columns_info}
-
-    General Information:
-    - Total number of rows: {total_rows}
-    - Total number of columns: {total_columns}
-    - Column names: {column_names}
-
-    Sample Data (first 5 rows):
-    {sample_data}
-
-    Basic Insights:
-    {insights_str}
-
-    Please provide a clear, concise, and professional analysis in response to this query: {query}
-
-    Your response should include:
-    1. A direct answer to the query based on the provided data and insights from the data for easy understanding.
-    2. Relevant statistical information from the data summary or generated insights in short concise sentence.
-    3. Any patterns or trends you can identify from the given information in 2 lines
-    4. Potential business implications based on your analysis in 2 lines
-    5.Citations
-      - **Cite specific data from the DataFrame** when answering the query (e.g., referencing actual values from columns).
-
-
-    **Important:** 
-      - **Do not make assumptions** about the data beyond what is provided.
-
-
-    **Formatting Guidelines:**
-        - Use **bold** for headings to ensure clear structure and readability.
-        - Ensure the font style is consistent throughout the response.
-        - Present the information in a professional manner, with bullet points where appropriate.
-
-    Maintain a clear and concise tone, with structured formatting for ease of understanding
-    If the provided information is not sufficient to fully answer the query, acknowledge this and provide the best possible interpretation based on the available data."""
-
-    full_prompt = f"Human: {prompt}\n\nAssistant:"
-    return invoke_claude(full_prompt)
+    response = invoke_claude(prompt)
+    
+    # Remove any markdown formatting if present
+    response = re.sub(r'\*\*|\*|#|`', '', response)
+    
+    return response.strip()
 
 # Function to create PyGWalker visualization
 def create_pygwalker_viz(df):
@@ -388,7 +411,8 @@ def create_pygwalker_viz(df):
 
 def generate_chart_explanation(chart_code, user_input):
     prompt = f"""
-    Based on the following Python Plotly code and the user's request, provide a simple 2-3 line explanation of the chart.
+    Based on the following Python Plotly code and the user's request, provide a simple 2-3 line explanation of the chart for easy understanding.
+    Explain on the data part..avoid explanations on colours used in the chart
     
     User Request: {user_input}
     
@@ -411,6 +435,23 @@ def generate_chart_explanation(chart_code, user_input):
         return "No explanation available."
 
 # Main Streamlit app
+
+def get_binary_file_downloader_html(bin_file, file_label='File'):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    file_ext = bin_file.split('.')[-1].lower()
+    
+    if file_ext == 'csv':
+        mime_type = 'text/csv'
+    elif file_ext == 'docx':
+        mime_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    else:
+        mime_type = 'application/octet-stream'
+    
+    href = f'<a href="data:{mime_type};base64,{bin_str}" download="{bin_file}">Download {file_label}</a>'
+    return href
+
 def main():
     if not aws_access_key_id or not aws_secret_access_key:
         st.error("AWS credentials are not set. Please set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.")
@@ -438,7 +479,14 @@ def main():
     
     # Sidebar
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Choose a page", ["Chatbot Query", "Data Visualization", "Chart Generation"])
+    page = st.sidebar.radio("Choose a page", ["Chatbot Query", "Chart Generation", "Data Visualization"])
+
+    st.sidebar.markdown("### Sample Files")
+    
+    st.sidebar.markdown(get_binary_file_downloader_html('sales_data_sample.csv', 'Sample Data (CSV)'), unsafe_allow_html=True)
+    
+    # DOCX file
+    st.sidebar.markdown(get_binary_file_downloader_html('SampleQueries.docx', 'Sample Queries (DOCX)'), unsafe_allow_html=True)
 
     # if st.sidebar.button("Clear Chat"):
     #     st.session_state.messages = []
@@ -474,33 +522,25 @@ def main():
                     st.session_state.file_uploaded = True
                     # Display upload success message only once
                     if not st.session_state.upload_success_message_shown:
-                        success_message = "✅ Great! Your sales dataset has been successfully uploaded. Now, feel free to ask me any questions about your data. For example, you could ask about total sales, top-selling products, or sales trends over time."
+                        success_message = "✅ Great! Your sales dataset has been successfully uploaded. "
                         
                             
                         st.session_state.messages.append({"role": "assistant", "content": success_message})
+                        st.session_state.upload_success_message_shown = True
+                        overview = generate_dataset_overview(df)
+                        st.session_state.messages.append({"role": "assistant", "content": f"Dataset Overview:\n{overview}\n\nNow, feel free to ask me any questions about your data!"})
+                
 
-            if st.session_state.file_uploaded and st.session_state.df is not None:       
-                    with st.expander("Dataset Overview", expanded=False):
-                        st.markdown(" Dataset Overview")
-                        
-                        # Display column names
-                        st.markdown("Columns:")
-                        st.write(", ".join(df.columns.tolist()))
-                        
-                        # Display first 5 rows
-                        st.markdown("First 5 Rows:")
-                        st.dataframe(df.head(), use_container_width=True)
-                                    
-
+            
 
              
         # Display chat messages
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+               st.markdown(f'<div class="assistant-message">{message["content"]}</div>', unsafe_allow_html=True)
 
         # Handle user input
-        if prompt := st.chat_input("What would you like to know about the sales data?"):
+        if prompt := st.chat_input("What would you like to know about the data?"):
             st.session_state.user_input_given = True
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
@@ -515,19 +555,19 @@ def main():
             
             st.session_state.messages.append({"role": "assistant", "content": response})
             with st.chat_message("assistant"):
-                st.markdown(response)
+                 st.markdown(f'<div class="assistant-message">{response}</div>', unsafe_allow_html=True)
         if st.session_state.user_input_given and st.session_state.response_generated:
             if st.button("Clear Chat"):
-                st.session_state.messages = []
-                st.session_state.welcome_message_shown = False
-                st.session_state.upload_success_message_shown = False
-                st.session_state.file_uploaded = False
-                st.rerun()
+                    st.session_state.messages = []
+                    st.session_state.welcome_message_shown = False
+                    st.session_state.upload_success_message_shown = False
+                    st.session_state.file_uploaded = False
+                    st.rerun()
 
+            
         
-     
     elif page == "Chart Generation":
-        st.title("Chart Generation ")
+        st.title("Chart Generation")
         
         # Initialize chat history in session state if it doesn't exist
         if 'chart_chat_history' not in st.session_state:
@@ -546,90 +586,89 @@ def main():
             # Chat input
             user_input = st.chat_input("Describe the chart you want to create:")
             
+            if user_input:
+                st.session_state.user_input_given_chart = True
+                # Add user message to chat history
+                st.session_state.chart_chat_history.append({"role": "user", "content": user_input})
 
-        if user_input:
-                    st.session_state.user_input_given_chart = True
-                    # Add user message to chat history
-                    st.session_state.chart_chat_history.append({"role": "user", "content": user_input})
+                # Display user message
+                with st.chat_message("user"):
+                    st.write(user_input)
 
-                    # Display user message
-                    with st.chat_message("user"):
-                        st.write(user_input)
+                # Create an empty placeholder for the animation
+                with st.chat_message("assistant"):
+                    gif_placeholder = st.empty()
+                    with gif_placeholder:
+                        st_lottie(chart_loading_animation, height=200, key="chart_loading")
 
-                    # Create an empty placeholder for the animation
-                    with st.chat_message("assistant"):
-                        gif_placeholder = st.empty()
-                        with gif_placeholder:
-                            st_lottie(chart_loading_animation, height=200, key="chart_loading")
+                    # Generate the chart code using OpenAI
+                    chart_code = generate_chart(st.session_state.df, user_input)
 
-                        # Generate the chart code using OpenAI
-                        chart_code = generate_chart(st.session_state.df, user_input)
+                    if chart_code:
+                        try:
+                            # Create a new local namespace to execute the code
+                            local_vars = {'df': st.session_state.df, 'px': px}
 
-                        if chart_code:
-                            try:
-                                # Create a new local namespace to execute the code
-                                local_vars = {'df': st.session_state.df, 'px': px}
+                            # Execute the code
+                            exec(chart_code, globals(), local_vars)
 
-                                # Execute the code
-                                exec(chart_code, globals(), local_vars)
+                            # Check if 'fig' is in the local namespace
+                            if 'fig' in local_vars:
+                                # Once the chart is generated, clear the GIF
+                                gif_placeholder.empty()
+                                # Display the generated chart
+                                st.plotly_chart(local_vars['fig'])
+                                # Add to chat history
+                                st.session_state.chart_chat_history.append({
+                                    "role": "assistant",
+                                    "content": "Here's the chart you requested:",
+                                    "chart": local_vars['fig']
+                                })
+                                explanation = generate_chart_explanation(chart_code, user_input)
 
-                                # Check if 'fig' is in the local namespace
-                                if 'fig' in local_vars:
-                                    # Once the chart is generated, clear the GIF
-                                    gif_placeholder.empty()
-                                    # Display the generated chart
-                                    st.plotly_chart(local_vars['fig'])
-                                    # Add to chat history
-                                    st.session_state.chart_chat_history.append({
-                                        "role": "assistant",
-                                        "content": "Here's the chart you requested:",
-                                        "chart": local_vars['fig']
-                                    })
-                                    explanation = generate_chart_explanation(chart_code, user_input)
-
-                                    # Display the explanation
-                                    st.write(explanation)
-                                    st.session_state.response_generated_chart= True
-                                else:
-                                    st.error("The generated code did not produce a 'fig' object.")
-                                    st.code(chart_code, language="python")
-                                    # Add to chat history
-                                    st.session_state.chart_chat_history.append({
-                                        "role": "assistant",
-                                        "content": "I encountered an error while generating the chart. Here's the code I attempted to use:"
-                                    })
-                                    st.write("I encountered an error while generating the chart. Here's the code I attempted to use:")
-
-                            except Exception as e:
-                                st.error(f"Error generating chart: {str(e)}")
+                                # Display the explanation
+                                st.write(explanation)
+                                st.session_state.response_generated_chart = True
+                            else:
+                                st.error("The generated code did not produce a 'fig' object.")
                                 st.code(chart_code, language="python")
                                 # Add to chat history
                                 st.session_state.chart_chat_history.append({
                                     "role": "assistant",
-                                    "content": f"I encountered an error while generating the chart: {str(e)}\nHere's the code I attempted to use:"
+                                    "content": "I encountered an error while generating the chart. Here's the code I attempted to use:"
                                 })
-                                st.write(f"I encountered an error while generating the chart: {str(e)}\nHere's the code I attempted to use:")
+                                st.write("I encountered an error while generating the chart. Here's the code I attempted to use:")
 
-                        else:
-                            st.error("Failed to generate valid chart code. Please try again with a different prompt.")
+                        except Exception as e:
+                            st.error(f"Error generating chart: {str(e)}")
+                            st.code(chart_code, language="python")
                             # Add to chat history
                             st.session_state.chart_chat_history.append({
                                 "role": "assistant",
-                                "content": "I'm sorry, but I couldn't generate a valid chart code based on your description. Could you please try rephrasing your request or providing more details?"
+                                "content": f"I encountered an error while generating the chart: {str(e)}\nHere's the code I attempted to use:"
                             })
-                            st.write("I'm sorry, but I couldn't generate a valid chart code based on your description. Could you please try rephrasing your request or providing more details?")
+                            st.write(f"I encountered an error while generating the chart: {str(e)}\nHere's the code I attempted to use:")
 
-                        gif_placeholder.empty()  # Ensure the GIF is cleared in all cases
+                    else:
+                        st.error("Failed to generate valid chart code. Please try again with a different prompt.")
+                        # Add to chat history
+                        st.session_state.chart_chat_history.append({
+                            "role": "assistant",
+                            "content": "I'm sorry, but I couldn't generate a valid chart code based on your description. Could you please try rephrasing your request or providing more details?"
+                        })
+                        st.write("I'm sorry, but I couldn't generate a valid chart code based on your description. Could you please try rephrasing your request or providing more details?")
 
-                # Clear chat history button
-        if st.session_state.user_input_given_chart and st.session_state.response_generated_chart:
-            if st.button("Clear History"):
-                st.session_state.chart_chat_history = []
-                st.session_state.user_input_given_chart = False
-                st.session_state.response_generated_chart = False
-                st.success("Chart history cleared!")
-                st.rerun()
+                    gif_placeholder.empty()  # Ensure the GIF is cleared in all cases
 
+            # Clear chat history button
+            if st.session_state.user_input_given_chart and st.session_state.response_generated_chart:
+                if st.button("Clear History"):
+                    st.session_state.chart_chat_history = []
+                    st.session_state.user_input_given_chart = False
+                    st.session_state.response_generated_chart = False
+                    st.success("Chart history cleared!")
+                    st.rerun()
+                    
     elif page == "Data Visualization":
         st.title("Data Visualization")
         if 'df' not in st.session_state or st.session_state.df is None:
