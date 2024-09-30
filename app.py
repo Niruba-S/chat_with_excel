@@ -162,7 +162,6 @@ def load_data(file):
             if df.empty:
                 st.error("The uploaded Excel file is empty.")
                 return None
-            st.success("Excel file successfully loaded.")
             return df
         except Exception as e:
             st.error(f"Error loading Excel file: {str(e)}")
@@ -405,8 +404,9 @@ def create_pygwalker_viz(df):
             }
         }
     }
+
     pyg_html = pyg.to_html(df,config=config)
-    components.html(pyg_html, height=1000, scrolling=True)
+    components.html(pyg_html, height=1000, scrolling=False)
 
 
 def generate_chart_explanation(chart_code, user_input):
@@ -453,6 +453,11 @@ def get_binary_file_downloader_html(bin_file, file_label='File'):
     return href
 
 def main():
+    sample_queries = """
+1.	What is the highest-selling product line in the dataset?
+2.	Identify the top 5 customers based on total sales.
+
+"""
     if not aws_access_key_id or not aws_secret_access_key:
         st.error("AWS credentials are not set. Please set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.")
         st.stop()
@@ -481,13 +486,12 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.radio("Choose a page", ["Chatbot Query", "Chart Generation", "Data Visualization"])
 
-    st.sidebar.markdown("### Sample Files")
+    st.sidebar.markdown("### Sample Dataset and Queries")
     
     st.sidebar.markdown(get_binary_file_downloader_html('sales_data_sample.csv', 'Sample Data (CSV)'), unsafe_allow_html=True)
     
     # DOCX file
-    st.sidebar.markdown(get_binary_file_downloader_html('SampleQueries.docx', 'Sample Queries (DOCX)'), unsafe_allow_html=True)
-
+    st.sidebar.markdown(sample_queries  )
     # if st.sidebar.button("Clear Chat"):
     #     st.session_state.messages = []
     #     st.session_state.welcome_message_shown = False
@@ -528,7 +532,7 @@ def main():
                         st.session_state.messages.append({"role": "assistant", "content": success_message})
                         st.session_state.upload_success_message_shown = True
                         overview = generate_dataset_overview(df)
-                        st.session_state.messages.append({"role": "assistant", "content": f"Dataset Overview:\n{overview}\n\nNow, feel free to ask me any questions about your data!"})
+                        st.session_state.messages.append({"role": "assistant", "content": f"<b>Data Overview</b>:\n{overview}\n\nNow, feel free to ask me any questions about your data!"})
                 
 
             
@@ -568,10 +572,37 @@ def main():
         
     elif page == "Chart Generation":
         st.title("Chart Generation")
-        
         # Initialize chat history in session state if it doesn't exist
         if 'chart_chat_history' not in st.session_state:
             st.session_state.chart_chat_history = []
+
+        if 'df' in st.session_state and st.session_state.df is not None:
+          
+          st.session_state.chart_welcome_shown = False
+
+        if not st.session_state.chart_welcome_shown:
+            welcome_message = """
+            👋 Welcome to the Chart Generation page! 
+            
+            Here, you can create custom charts based on your uploaded data. Simply describe the chart you want, and I'll generate it for you.
+
+            Sample Queries for Chart Generation:
+            1. Show total sales per country.
+            2. Create a histogram of order quantities.
+
+            Feel free to ask for any chart you need, and I'll do my best to create it!
+            """
+            
+            
+            
+            st.session_state.chart_chat_history.append({
+                "role": "assistant",
+                "content": welcome_message
+            })
+            
+            st.session_state.chart_welcome_shown = True
+            
+        
 
         if 'df' not in st.session_state or st.session_state.df is None:
             st.warning("Please upload a file on the Chatbot Query page to generate charts.")
@@ -666,7 +697,6 @@ def main():
                     st.session_state.chart_chat_history = []
                     st.session_state.user_input_given_chart = False
                     st.session_state.response_generated_chart = False
-                    st.success("Chart history cleared!")
                     st.rerun()
                     
     elif page == "Data Visualization":
