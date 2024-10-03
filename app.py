@@ -380,11 +380,9 @@ def query_data(df, query):
     6. Keep your response to 2-3 sentences maximum.
     7. Speak as a data analyst would, focusing on facts and insights.Let the answer be more human like rather than a chatbot.
     8. Identify key patterns and trends that could help improve sales.
-    9. Provide data-driven recommendations that are directly actionable.
-    10. Structure the recommendations to focus on how different aspects of the dataset can boost sales (e.g., targeting specific customer segments, optimizing product offerings, etc.).
-    11. Cite specific data from the DataFrame when answering the query (e.g., referencing actual values from columns).
-    12. Provide the answer for the query and then cite the data source.
-    13.If the query cannot be answered with the available data, clearly state why, but focus on using the available dataset as much as possible.
+    9. Cite specific data from the DataFrame when answering the query (e.g., referencing actual values from columns).
+    10. Provide the answer for the query and then cite the data source.
+    11.If the query cannot be answered with the available data, clearly state why, but focus on using the available dataset as much as possible.
 
     Format:
     [Your answer here]
@@ -510,17 +508,17 @@ def main():
     #     st.rerun()
 
     if page == "Chatbot Query":
-        col1, col2 = st.columns([2, 1.1])
+        col1, col2 = st.columns([2, 1])
 
         with col1:
-            st.title("Sales Insights and Recommendation Engine")
+            st.title("GenAI powered Sales Analytics Engine")
         
         with col2:
             st_lottie(lottie_data, height=120, key="lottie_animation")
 
         # Display welcome message only once
         if not st.session_state.welcome_message_shown:
-            welcome_message = "👋 Welcome to the Sales Data Analysis App! To get started, please upload your sales dataset using the file uploader in the sidebar. Once uploaded, I'll be here to answer any questions you have about your data!"
+            welcome_message = "👋 Welcome to the GenAI powered sales analytics engine! To get started, please upload your sales dataset using the file uploader in the sidebar. Once uploaded, I'll be here to answer any questions you have about your data!"
             # with st.chat_message("assistant"):
                 
             st.session_state.messages.append({"role": "assistant", "content": welcome_message})
