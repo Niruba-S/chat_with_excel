@@ -105,7 +105,7 @@ st.markdown("""
     background-color: white;
 }
     .st-emotion-cache-10trblm{
-        font-size: 30px;
+        font-size: 27px;
         font-weight: bold;
         color: rgb(243, 120, 43);  /* Matches the orange color */
         font-family: 'Nunito Sans', sans-serif;  /* Adjust this to match the font style */
@@ -367,16 +367,25 @@ def query_data(df, query):
 
     Respond to this query: {query}
     Guidelines for your response:
+    Assume full access to the dataset and perform any necessary analysis on the actual data values.
     1. Thoroughly analyze the entire dataset before answering the query.
     2. Perform relevant statistical analyses based on the query.
-    3. Provide a direct, concise answer without unnecessary explanations.
-    4. Include relevant numbers and statistics from the data.
-    5. If the query can't be answered with the given information, say so briefly.
+    3.Tailor your response to the type of query:
+        -Statistical Queries: Perform relevant calculations (e.g., mean, median, distribution, correlations) and provide direct insights based on the dataset.
+        -Recommendation Queries: Use the dataset to suggest actionable steps, such as strategies to improve sales, customer retention, or operational efficiency.
+        -Customer Satisfaction/Performance Queries: Analyze satisfaction or performance-related columns, identifying trends, averages, and potential areas for improvement.
+        -Data Quality Queries: Assess completeness, missing data, or potential outliers in the dataset.
+    4. Provide a direct, concise answer without unnecessary explanations.
+    5. Include relevant numbers and statistics from the data.
     6. Keep your response to 2-3 sentences maximum.
-    7. Cite specific data from the DataFrame when answering the query (e.g., referencing actual values from columns).
-    8. Speak as a data analyst would, focusing on facts and insights.Let the answer be more human like rather than a chatbot.
-    9.**Important**- Font Consistency:To ensure consistent formatting, the font used for the entire response should be uniform across all parts.
-    10. Provide the answer for the query and then cite the data source.
+    7. Speak as a data analyst would, focusing on facts and insights.Let the answer be more human like rather than a chatbot.
+    8. Identify key patterns and trends that could help improve sales.
+    9. Provide data-driven recommendations that are directly actionable.
+    10. Structure the recommendations to focus on how different aspects of the dataset can boost sales (e.g., targeting specific customer segments, optimizing product offerings, etc.).
+    11. Cite specific data from the DataFrame when answering the query (e.g., referencing actual values from columns).
+    12. Provide the answer for the query and then cite the data source.
+    13.If the query cannot be answered with the available data, clearly state why, but focus on using the available dataset as much as possible.
+
     Format:
     [Your answer here]
     **SOURCE**: [Citation of the data source]
@@ -501,10 +510,10 @@ def main():
     #     st.rerun()
 
     if page == "Chatbot Query":
-        col1, col2 = st.columns([1.7, 1.3])
+        col1, col2 = st.columns([2, 1.1])
 
         with col1:
-            st.title("Sales Data Analysis App")
+            st.title("Sales Insights and Recommendation Engine")
         
         with col2:
             st_lottie(lottie_data, height=120, key="lottie_animation")
@@ -571,6 +580,8 @@ def main():
             
         
     elif page == "Chart Generation":
+        if "chart_welcome_shown" not in st.session_state:
+         st.session_state.chart_welcome_shown = False
         st.title("Chart Generation")
         # Initialize chat history in session state if it doesn't exist
         if 'chart_chat_history' not in st.session_state:
