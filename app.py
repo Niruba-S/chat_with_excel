@@ -14,7 +14,7 @@ import pygwalker as pyg
 import time
 import numpy as np
 import base64
-
+from main import display_sidebar,login_page,reset_password_page
 # Load the .env file
 load_dotenv()
 
@@ -70,7 +70,6 @@ def invoke_claude(prompt):
         return None
 
 # Set page configuration
-st.set_page_config(page_title="Sales Data Analysis App", page_icon="📊", layout="wide")
 
 # Custom CSS
 st.markdown("""
@@ -459,7 +458,11 @@ def get_binary_file_downloader_html(bin_file, file_label='File'):
     href = f'<a href="data:{mime_type};base64,{bin_str}" download="{bin_file}">Download {file_label}</a>'
     return href
 
-def main():
+if "sidebar_message" not in st.session_state:
+    st.session_state.sidebar_message = "Welcome!"
+
+def home_page():
+    
     sample_queries = """
 1.	What is the highest-selling product line in the dataset?
 2.	Identify the top 5 customers based on total sales.
@@ -485,14 +488,14 @@ def main():
     if "response_generated_chart" not in st.session_state:
         st.session_state.response_generated_chart = False
     user_input = " "
-
+    display_sidebar()
 
     uploaded_file = st.sidebar.file_uploader("File Uploader", type=["csv", "xlsx", "xls"])
     
     # Sidebar
     st.sidebar.title("Navigation")
     page = st.sidebar.radio("Choose a page", ["Chatbot Query", "Chart Generation", "Data Visualization"])
-
+    
     st.sidebar.markdown("### Sample Dataset and Queries")
     
     st.sidebar.markdown(get_binary_file_downloader_html('sales_data_sample.csv', 'Sample Data (CSV)'), unsafe_allow_html=True)
@@ -508,7 +511,7 @@ def main():
     #     st.rerun()
 
     if page == "Chatbot Query":
-        col1, col2 = st.columns([2, 1])
+        col1, col2 = st.columns([2.5, 0.5])
 
         with col1:
             st.title("GenAI powered Sales Analytics Engine")
@@ -716,6 +719,22 @@ def main():
             # Only show PyGWalker visualization, remove all other content
             create_pygwalker_viz(st.session_state.df)
     
+def main():
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+    if "page" not in st.session_state:
+        st.session_state.page = "home"
 
+    if st.session_state.logged_in:
+        if st.session_state.page == "reset_password":
+            reset_password_page()
+            
+        else:
+            home_page()
+    elif st.session_state.page == "reset_password":
+        reset_password_page()
+    else:
+        login_page()
+        
 if __name__ == "__main__":
     main()
