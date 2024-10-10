@@ -235,7 +235,7 @@ def signup(username, email, password, confirm_password):
             )
             conn.commit()
             st.session_state.user_email = email
-            st.success("You have successfully signed up!")
+            st.info("Signup successful, You can Login now! ")
             if send_welcome_email(email, username):
                 logging.info(f"Welcome email sent to {email}")
             else:
@@ -412,70 +412,70 @@ if st.session_state.login_success and st.session_state.user_email:
 
 
 def login_page():
-    add_logo("https://www.goml.io/wp-content/smush-webp/2023/10/GoML_logo.png.webp", image_size="200px")
-    st.title("GenAI powered Sales Analytics Engine")
-    tab1, tab2 = st.tabs(["Login", "Sign Up"])
-
-    with tab1:
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            with st.form(key='login_form'):
-                email = st.text_input("Email", key="login_email")
-                password = st.text_input("Password", type="password", key="login_password")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    login_button = st.form_submit_button(label='Login')
-                with col2:
-                    forgot_password_button = st.form_submit_button(label='Forgot Password')
-                
-                if login_button:
-                    login_result = verify_login(email, password)
-                    if login_result:
-                        st.session_state.page = "home"
-                        st.session_state.login_success = True
-                        st.session_state.logged_in = True 
-                        st.session_state.user_email = login_result
-                        st.rerun()
-                    else:
-                        st.error("Invalid email or password")
-                    
-                    
-            
-                
-                if forgot_password_button:
-                    if email:
-                        if reset_password(email):
-                            st.success(f"New password sent to {email}. Please check your email.")
-                        else:
-                            st.error("Failed to reset password. Please try again.")
-                    else:
-                        st.error("Please enter your email to reset your password")
-        
-        with col2:
-            st.write("")
-            st.write("")
     
-    with tab2:
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            with st.form(key='signup_form'):
-                signup_username = st.text_input("Username", key="signup_username")
-                signup_email = st.text_input("Email", key="signup_email")
-                signup_password = st.text_input("Password", type="password", key="signup_password")
-                signup_confirm_password = st.text_input("Confirm Password", type="password", key="signup_confirm_password")
-                signup_button = st.form_submit_button(label='Sign Up')
-                
-                if signup_button:
-                    if signup(signup_username, signup_email, signup_password, signup_confirm_password):
-                        st.session_state.page = "home"
-                        st.session_state.login_success = True
-                        st.session_state.logged_in = True 
-                        st.rerun()
+        add_logo("https://www.goml.io/wp-content/smush-webp/2023/10/GoML_logo.png.webp", image_size="200px")
+        st.title("GenAI powered Sales Analytics Engine")
         
-        with col2:
-            st.write("")
-            st.write("")
+        tab1, tab2 = st.tabs(["Login", "Sign Up"])
+
+        with tab1:
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                with st.form(key='login_form'):
+                    email = st.text_input("Email", key="login_email")
+                    password = st.text_input("Password", type="password", key="login_password")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        login_button = st.form_submit_button(label='Login')
+                    with col2:
+                        forgot_password_button = st.form_submit_button(label='Forgot Password')
+                    
+                    if login_button:
+                        login_result = verify_login(email, password)
+                        if login_result:
+                            st.session_state.page = "home"
+                            st.session_state.login_success = True
+                            st.session_state.logged_in = True 
+                            st.session_state.user_email = login_result
+                            st.rerun()
+                        else:
+                            st.error("Invalid email or password")
+                        
+                        
+                
+                    
+                    if forgot_password_button:
+                        if email:
+                            if reset_password(email):
+                                st.success(f"New password sent to {email}. Please check your email.")
+                            else:
+                                st.error("Failed to reset password. Please try again.")
+                        else:
+                            st.error("Please enter your email to reset your password")
+            
+            with col2:
+                st.write("")
+                st.write("")
+        
+        with tab2:
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                with st.form(key='signup_form'):
+                    signup_username = st.text_input("Username", key="signup_username")
+                    signup_email = st.text_input("Email", key="signup_email")
+                    signup_password = st.text_input("Password", type="password", key="signup_password")
+                    signup_confirm_password = st.text_input("Confirm Password", type="password", key="signup_confirm_password")
+                    signup_button = st.form_submit_button(label='Sign Up')
+                    
+                    if signup_button:
+                        if signup(signup_username, signup_email, signup_password, signup_confirm_password):
+                            
+                            st.rerun()
+            
+            with col2:
+                st.write("")
+                st.write("")
 
         
             

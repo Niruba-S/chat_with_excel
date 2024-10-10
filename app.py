@@ -70,6 +70,13 @@ def invoke_claude(prompt):
         return None
 
 # Set page configuration
+st.set_page_config(
+    page_title="Sales analysis app",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+   
+)
 
 # Custom CSS
 st.markdown("""
@@ -463,6 +470,7 @@ if "sidebar_message" not in st.session_state:
 
 def home_page():
     
+    
     sample_queries = """
 1.	What is the highest-selling product line in the dataset?
 2.	Identify the top 5 customers based on total sales.
@@ -726,6 +734,7 @@ def main():
         st.session_state.page = "home"
 
     if st.session_state.logged_in:
+        
         if st.session_state.page == "reset_password":
             reset_password_page()
             
