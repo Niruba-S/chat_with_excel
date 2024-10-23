@@ -15,6 +15,15 @@ import time
 import numpy as np
 import base64
 from main import display_sidebar,login_page,reset_password_page
+
+
+st.set_page_config(
+    page_title="Sales analysis app",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+   
+)
 # Load the .env file
 load_dotenv()
 
@@ -70,13 +79,7 @@ def invoke_claude(prompt):
         return None
 
 # Set page configuration
-st.set_page_config(
-    page_title="Sales analysis app",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded",
-   
-)
+
 
 # Custom CSS
 st.markdown("""
