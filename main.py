@@ -136,48 +136,6 @@ def create_users_table():
 
 # create_users_table()
 
-def update_user_customer_id():
-    atrs = st.query_params.get("atrs")
-    if atrs:
-        conn = get_db_connection()
-        if not conn:
-            st.error("Database connection failed")
-            return
-        
-        cur = conn.cursor()
-        try:
-            # First get the customer_id from product_customers table using atrs (which is the id)
-            cur.execute("""
-                SELECT id FROM product_customers 
-                WHERE id = %s
-            """, (atrs,))
-            
-            customer_result = cur.fetchone()
-            
-            if customer_result:
-                # Update the user table with the customer_id
-                cur.execute("""
-                    UPDATE users 
-                    SET customer_id = %s 
-                    WHERE id = (SELECT id FROM users LIMIT 1)
-                """, (customer_result[0],))
-                
-                conn.commit()
-                st.success("AWS Marketplace connection successful!")
-            else:
-                st.error("Customer not found in marketplace records")
-                
-        except Exception as e:
-            conn.rollback()
-            st.error(f"Error updating customer ID: {e}")
-        finally:
-            cur.close()
-            conn.close()
-    # else:
-    #     st.error("This application is available only on AWS Market Place. Please try to sign up through AWS Marketplace portal")
-
-# Call this function at the start of your app
-update_user_customer_id()
 
 def add_logo(image_url, image_size="100px"):
     try:
