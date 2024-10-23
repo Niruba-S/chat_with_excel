@@ -173,8 +173,8 @@ def update_user_customer_id():
         finally:
             cur.close()
             conn.close()
-    else:
-        st.error("This application is available only on AWS Market Place. Please try to sign up through AWS Marketplace portal")
+    # else:
+    #     st.error("This application is available only on AWS Market Place. Please try to sign up through AWS Marketplace portal")
 
 # Call this function at the start of your app
 update_user_customer_id()
