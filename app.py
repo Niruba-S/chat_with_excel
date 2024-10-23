@@ -15,6 +15,8 @@ import time
 import numpy as np
 import base64
 from main import display_sidebar,login_page,reset_password_page
+import psycopg2
+import logging
 
 
 st.set_page_config(
@@ -31,6 +33,112 @@ load_dotenv()
 aws_access_key_id = os.getenv('aws_access_key')
 aws_secret_access_key = os.getenv('aws_secret_key')
 aws_region = os.getenv('region_name', 'us-east-1')
+
+def get_secret(secret_name, region_name):
+    # Create a session using the loaded environment variables
+    session = boto3.session.Session(
+        aws_access_key_id=os.getenv("aws_access_key"),
+        aws_secret_access_key=os.getenv("aws_secret_key"),
+        region_name=region_name
+    )
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    try:
+        # Fetch the secret value
+        get_secret_value_response = client.get_secret_value(SecretId=secret_name)
+        
+        # Return SecretString if available
+        if 'SecretString' in get_secret_value_response:
+            secret = get_secret_value_response['SecretString']
+        else:
+            secret = get_secret_value_response['SecretBinary']
+        
+        secret_dict = json.loads(secret)  # Parse secret JSON string
+        return secret_dict
+
+    except ClientError as e:
+        print(f"Error retrieving secret: {e}")
+        raise e
+
+secret_name = "rds!db-1edec54a-39ae-4434-bc86-34b44cff4f1f"  # Replace with your secret name
+region_name = "us-east-1"  # Replace with your AWS region
+
+    # Get the secret
+credentials = get_secret(secret_name, region_name)
+
+    # Print credentials or do something with them
+RDS_DB_USER = credentials.get("username")
+RDS_DB_PASSWORD = credentials.get("password")
+print(RDS_DB_USER, RDS_DB_PASSWORD)
+
+secret_name = "marketplace1" 
+credentials=get_secret(secret_name, region_name)
+
+RDS_DB_NAME = credentials.get("dbname")
+RDS_DB_HOST = credentials.get("host")
+RDS_DB_PORT = credentials.get("port")
+
+def get_db_connection():
+    try:
+        return psycopg2.connect(
+            dbname=RDS_DB_NAME,
+            user=RDS_DB_USER,
+            password=RDS_DB_PASSWORD,
+            host=RDS_DB_HOST,
+            port=RDS_DB_PORT
+        )
+        
+    except Exception as e:
+        logging.error(f"Error connecting to database: {e}")
+        return None
+
+
+def update_user_customer_id():
+    atrs = st.query_params.get("atrs")
+    if atrs:
+        conn = get_db_connection()
+        if not conn:
+            st.error("Database connection failed")
+            return
+        
+        cur = conn.cursor()
+        try:
+            # First get the customer_id from product_customers table using atrs (which is the id)
+            cur.execute("""
+                SELECT id FROM product_customers 
+                WHERE id = %s
+            """, (atrs,))
+            
+            customer_result = cur.fetchone()
+            
+            if customer_result:
+                # Update the user table with the customer_id
+                cur.execute("""
+                    UPDATE users 
+                    SET customer_id = %s 
+                    WHERE id = (SELECT id FROM users LIMIT 1)
+                """, (customer_result[0],))
+                
+                conn.commit()
+                st.success("AWS Marketplace connection successful!")
+            else:
+                st.error("Customer not found in marketplace records")
+                
+        except Exception as e:
+            conn.rollback()
+            st.error(f"Error updating customer ID: {e}")
+        finally:
+            cur.close()
+            conn.close()
+    # else:
+    #     st.error("This application is available only on AWS Market Place. Please try to sign up through AWS Marketplace portal")
+
+# Call this function at the start of your app
+update_user_customer_id()
+
 
 BEDROCK_MODEL_ID = "anthropic.claude-3-5-sonnet-20240620-v1:0"
 
