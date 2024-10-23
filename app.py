@@ -108,7 +108,7 @@ def update_user_customer_id():
         try:
             # First get the customer_id from product_customers table using atrs (which is the id)
             cur.execute("""
-                SELECT id FROM product_customers 
+                SELECT customer_id FROM product_customers 
                 WHERE id = %s
             """, (atrs,))
             
