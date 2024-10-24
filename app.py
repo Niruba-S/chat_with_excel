@@ -17,8 +17,11 @@ import base64
 from main import display_sidebar,login_page,reset_password_page
 import psycopg2
 import logging
+from main import get_customer_id,submit_usage_record
 
+# Load the .env file
 
+# Set page configuration
 st.set_page_config(
     page_title="Sales analysis app",
     page_icon="📊",
@@ -26,13 +29,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
    
 )
-# Load the .env file
+
 load_dotenv()
 
 # Access variables from the .env file
 aws_access_key_id = os.getenv('aws_access_key')
 aws_secret_access_key = os.getenv('aws_secret_key')
 aws_region = os.getenv('region_name', 'us-east-1')
+
+BEDROCK_MODEL_ID = "anthropic.claude-3-5-sonnet-20240620-v1:0"
 
 def get_secret(secret_name, region_name):
     # Create a session using the loaded environment variables
@@ -95,7 +100,6 @@ def get_db_connection():
         logging.error(f"Error connecting to database: {e}")
         return None
 
-
 def update_user_customer_id():
     atrs = st.query_params.get("atrs")
     if atrs:
@@ -139,8 +143,6 @@ def update_user_customer_id():
 # Call this function at the start of your app
 update_user_customer_id()
 
-
-BEDROCK_MODEL_ID = "anthropic.claude-3-5-sonnet-20240620-v1:0"
 
 if not aws_access_key_id or not aws_secret_access_key:
     st.error("AWS credentials are not set. Please set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.")
@@ -186,7 +188,6 @@ def invoke_claude(prompt):
         st.error(f"An error occurred: {e}")
         return None
 
-# Set page configuration
 
 
 # Custom CSS
@@ -580,6 +581,8 @@ if "sidebar_message" not in st.session_state:
     st.session_state.sidebar_message = "Welcome!"
 
 def home_page():
+    user_email = st.session_state.user_email
+    print(f"User email: {user_email}")
     
     
     sample_queries = """
@@ -648,7 +651,17 @@ def home_page():
 
         # Handle file upload
         if uploaded_file is not None:
+            customer_id=get_customer_id(user_email)
+            print("after uploading file",customer_id)
+            response = submit_usage_record(
+                customer_id,
+                product_code='af1bwr4rvezfsomfgv3c9z8sw',
+                dimension='Usagebased',
+                quantity=1
+            )
+                        
             df = load_data(uploaded_file)
+
             if df is not None:
                 st.session_state.df = df
                 if not st.session_state.file_uploaded:
