@@ -127,7 +127,7 @@ def update_user_customer_id():
                 """, (customer_result[0],))
                 
                 conn.commit()
-                st.success("AWS Marketplace connection successful!")
+                
             else:
                 st.error("Customer not found in marketplace records")
                 
