@@ -13,6 +13,13 @@ from email.mime.text import MIMEText
 import boto3
 from botocore.exceptions import ClientError
 import json
+from datetime import datetime
+
+
+
+# load the access key and secret key from the environment variables
+access_key = os.environ.get("aws_access_key")
+secret_key = os.environ.get("aws_secret_key")
 
 
 if "conversation" not in st.session_state:
@@ -37,6 +44,7 @@ if "user_email" not in st.session_state:
     st.session_state.user_email = None
 if "show_account_menu" not in st.session_state:
     st.session_state.show_account_menu = False
+
 
 def get_secret(secret_name, region_name):
     # Create a session using the loaded environment variables
@@ -103,39 +111,124 @@ def get_db_connection():
 # Create users table
 
 def create_users_table():
+    conn = get_db_connection()
+    if not conn:
+        return
+    
+    cur = conn.cursor()
     try:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(50) NOT NULL,
+                email VARCHAR(100) UNIQUE NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                customer_id INTEGER,
+                CONSTRAINT fk_id1 FOREIGN KEY (customer_id) 
+                REFERENCES product_customers(id)
+            )
+        """)
+        conn.commit()
+        logging.info("Users table created or already exists")
+    except Exception as e:
+        logging.error(f"Error creating users table: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+def create_product_customers_table():
+    conn = get_db_connection()
+    if not conn:
+        return
+
+    cur = conn.cursor()
+    try:
+        # Create the product_customers table if it doesn't exist
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS product_customers (
+                id SERIAL PRIMARY KEY,
+                product_code VARCHAR(100) NOT NULL,
+                customer_id VARCHAR(100) UNIQUE NOT NULL,
+                customer_aws_account_id VARCHAR(100) NOT NULL
+            )
+        """)
+        
+        conn.commit()
+        logging.info("Product customers table created or already exists")
+    except Exception as e:
+        conn.rollback()
+        logging.error(f"Error creating product_customers table: {e}")
+    finally:
+        cur.close()
+        conn.close()
+        
+def add_unique_constraint_to_customer_id():
+    conn = get_db_connection()
+    if not conn:
+        return
+
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            ALTER TABLE users
+            ADD CONSTRAINT unique_customer_id UNIQUE (customer_id);
+        """)
+        conn.commit()
+        logging.info("UNIQUE constraint added to customer_id in users table")
+    except psycopg2.Error as e:
+        conn.rollback()
+        logging.error(f"Error adding UNIQUE constraint to customer_id: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+def update_user_customer_id():
+    atrs = st.query_params.get("atrs")
+    if atrs:
         conn = get_db_connection()
-        print("Creating users table...")
         if not conn:
-            logging.error("Database connection failed.")
+            st.error("Database connection failed")
             return
         
         cur = conn.cursor()
         try:
+            # First get the customer_id from product_customers table using atrs (which is the id)
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username VARCHAR(50) NOT NULL,
-                    email VARCHAR(100) UNIQUE NOT NULL,
-                    password VARCHAR(255) NOT NULL
-                )
-            """)
-            conn.commit()
-            logging.info("Users table created or already exists")
+                SELECT id FROM product_customers 
+                WHERE id = %s
+            """, (atrs,))
+            
+            customer_result = cur.fetchone()
+            
+            if customer_result:
+                # Update the user table with the customer_id
+                cur.execute("""
+                    UPDATE users 
+                    SET customer_id = %s 
+                    WHERE id = (SELECT id FROM users LIMIT 1)
+                """, (customer_result[0],))
+                
+                conn.commit()
+                st.success("AWS Marketplace connection successful!")
+            else:
+                st.error("Customer not found in marketplace records")
+                
         except Exception as e:
-            logging.error(f"Error creating users table: {e}")
+            conn.rollback()
+            st.error(f"Error updating customer ID: {e}")
         finally:
             cur.close()
-            logging.info("Cursor closed.")
-    except Exception as db_error:
-        logging.error(f"Database error: {db_error}")
-    finally:
-        if conn:
             conn.close()
-            logging.info("Database connection closed.")
+    # else:
+    #     st.error("This application is available only on AWS Market Place. Please try to sign up through AWS Marketplace portal")
 
+# Call this function at the start of your app
+update_user_customer_id()
+
+# Call these functions at the start of your app
+# create_product_customers_table()
 # create_users_table()
-
+# add_unique_constraint_to_customer_id()
 
 def add_logo(image_url, image_size="100px"):
     try:
@@ -220,19 +313,10 @@ def signup(username, email, password, confirm_password):
                 st.error("Email already exists")
                 return False
 
-            # Check if the customer_id exists in product_customers table
-            # cur.execute(
-            #     "SELECT id FROM product_customers WHERE id = %s",
-            #     (customer_id,)
-            # )
-            # if cur.fetchone() is None:
-            #     st.error("This customer ID does not exist in the product_customers table.")
-            #     return False
-
-            # If all checks pass, proceed with user insertion
+            
             cur.execute(
                 "INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
-                (username, email, hashed_password)# customer_id)
+                (username, email, hashed_password)
             )
             conn.commit()
             st.session_state.user_email = email
@@ -254,6 +338,7 @@ def signup(username, email, password, confirm_password):
         finally:
             cur.close()
             conn.close()
+        
 
 
             
@@ -404,12 +489,91 @@ def get_user_name(email):
     finally:
         cur.close()
         conn.close()      
+
+def get_customer_id(email):
+    conn = get_db_connection()
+    if not conn:
+        return None
+    
+    cur = conn.cursor()
+    
+    try:
+        cur.execute("SELECT customer_id FROM users WHERE email = %s", (email,))
+        result = cur.fetchone()
+        customer_id = result[0] if result else None
+        print(f"Customer ID for email {email}: {customer_id}")
+        return customer_id
+    except Exception as e:
+        logging.error(f"Error fetching customer ID for email {email}: {e}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+def get_entitlements(customer_id : str):
+    try:
+       
+        marketplace_client = boto3.client(
+            "marketplace-entitlement",
+            region_name="us-east-1",
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+        )
+        entitlements = marketplace_client.get_entitlements(
+            ProductCode="af1bwr4rvezfsomfgv3c9z8sw",
+            Filter={"CUSTOMER_IDENTIFIER": [customer_id]},
+        )
+        
+        return {
+            "status": "success",
+            "entitlements": entitlements,
+        }
+            
+    except Exception as e:
+        return {"error": str(e)}
     
 if st.session_state.login_success and st.session_state.user_email:
 
     user_name = get_user_name(st.session_state.user_email)
     if user_name:
         st.session_state.sidebar_message = f"Welcome, {user_name}!"
+
+
+def submit_usage_record(customer_identifier, product_code, dimension, quantity):
+
+
+    # Define the usage record
+    current_time = datetime.utcnow()
+    valid_timestamp = current_time.replace(microsecond=0)
+    usage_record = [
+        {
+            'Timestamp': valid_timestamp,
+            'CustomerIdentifier': customer_identifier,
+            'Dimension': dimension,
+            'Quantity': quantity
+        }
+    ]
+
+    # Initialize the AWS Marketplace Metering client
+    marketplace_client = boto3.client(
+        'meteringmarketplace',
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name="us-east-1"
+    )
+
+    # Send the usage record to AWS Marketplace
+    try:
+        response = marketplace_client.batch_meter_usage(
+            UsageRecords=usage_record,
+            ProductCode=product_code
+        )
+        print("Usage record submitted successfully:", response)
+        return response
+    except Exception as e:
+        print("Error submitting usage record:", str(e))
+        return None
+
 
 
 def login_page():
@@ -626,11 +790,18 @@ def update_password(email, new_password):
         cur.close()
         conn.close()
 
+
+
 def display_sidebar():
     st.sidebar.header(st.session_state.sidebar_message)
+    customer_id = get_customer_id(st.session_state.user_email)
+
+    result = get_entitlements(customer_id)
+    print("entitlementsresult",result)
     
     # Profile button at the very top
     if st.sidebar.button("👤 Profile", key="profile_button"):
+        
         st.session_state.show_account_menu = not st.session_state.get('show_account_menu', False)
     
     # Show account menu if the profile button was clicked
@@ -656,15 +827,14 @@ def display_sidebar():
         if st.sidebar.button("  Close Menu  "):
             st.session_state.show_account_menu = False
             st.rerun()
-        # customer_id = get_marketplace_customer_id(st.session_state.user_email)
 
-        # result = get_entitlements(customer_id)
         
-        # if result and result["status"] == "success":
-        #         date = result["entitlements"]["ResponseMetadata"]["HTTPHeaders"]["date"]
-        #         st.sidebar.subheader(f"Subscription ends on: {date}")            
+        
+        if result and result["status"] == "success":
+                date = result["entitlements"]["ResponseMetadata"]["HTTPHeaders"]["date"]
+                st.sidebar.subheader(f"Subscription ends on: {date}")            
         
             
         
-        # else:
-        #         st.error("Unable to retrieve entitlements.")
+        else:
+                st.error("Unable to retrieve entitlements.")
