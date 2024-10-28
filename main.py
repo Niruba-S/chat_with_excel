@@ -305,12 +305,28 @@ def signup(username, email, password, confirm_password):
         try:
             print(f"Checking subscription for marketplace_id: {marketplace_id}")
 
+            query = cur.mogrify("""
+                SELECT id FROM product_customers WHERE customer_id = %s
+            """, (marketplace_id,))
+            print("Executing query:", query.decode())
+            
             cur.execute("""
                 SELECT id FROM product_customers WHERE customer_id = %s
             """, (marketplace_id,))
             
             existing_user = cur.fetchone()
-            print("existing user" ,existing_user)
+            print("existing_user:", existing_user)
+            
+            # Get row count
+            row_count = cur.rowcount
+            print(f"Number of rows returned: {row_count}")
+            
+            # If no user found, let's check if the table has any data
+            cur.execute("SELECT COUNT(*) FROM product_customers")
+            total_rows = cur.fetchone()[0]
+            print(f"Total rows in product_customers table: {total_rows}")
+
+            
             if existing_user:
                 st.error("This marketplace subscription is already in use")
                 return False
