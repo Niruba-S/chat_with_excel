@@ -303,12 +303,14 @@ def signup(username, email, password, confirm_password):
         cur = conn.cursor()
         marketplace_id = str(customer_id)
         try:
-            
+            print(f"Checking subscription for marketplace_id: {marketplace_id}")
+
             cur.execute("""
                 SELECT id FROM product_customers WHERE customer_id = %s
             """, (marketplace_id,))
             
             existing_user = cur.fetchone()
+            print("existing user" ,existing_user)
             if existing_user:
                 st.error("This marketplace subscription is already in use")
                 return False
