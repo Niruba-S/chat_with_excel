@@ -301,11 +301,12 @@ def signup(username, email, password, confirm_password):
             return False
         
         cur = conn.cursor()
-        
+        marketplace_id = str(customer_id)
         try:
+            
             cur.execute("""
                 SELECT id FROM users WHERE customer_id = %s
-            """, (customer_id,))
+            """, (marketplace_id,))
             
             existing_user = cur.fetchone()
             if existing_user:
