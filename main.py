@@ -306,12 +306,12 @@ def signup(username, email, password, confirm_password):
             print(f"Checking subscription for marketplace_id: {marketplace_id}")
 
             query = cur.mogrify("""
-                SELECT id FROM product_customers WHERE customer_id = %s
+                SELECT customer_id FROM product_customers WHERE id = %s
             """, (marketplace_id,))
             print("Executing query:", query.decode())
             
             cur.execute("""
-                SELECT id FROM product_customers WHERE customer_id = %s
+                SELECT customer_id FROM product_customers WHERE id = %s
             """, (marketplace_id,))
             
             existing_user = cur.fetchone()
