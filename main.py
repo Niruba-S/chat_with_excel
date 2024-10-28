@@ -263,10 +263,10 @@ def is_valid_password(password):
     return True
 
 def signup(username, email, password, confirm_password):
-    # atrs = st.query_params.get("atrs")
-    # if not atrs:
-    #     st.error("This application is available only on AWS Market Place. Please try to sign up through AWS Marketplace portal")
-    #     return False
+    atrs = st.query_params.get("atrs")
+    if not atrs:
+        st.error("This application is available only on AWS Market Place. Please try to sign up through AWS Marketplace portal")
+        return False
     if not is_valid_email(email):
         st.error("Please enter a valid email address")
         return False
@@ -283,17 +283,17 @@ def signup(username, email, password, confirm_password):
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
         
         # # Get the atrs value from URL query parameters
-        # atrs = st.query_params.get("atrs")
-        # if not atrs:
-        #     st.error("Invalid signup link. Please use the correct URL.")
-        #     return False
+        atrs = st.query_params.get("atrs")
+        if not atrs:
+            st.error("Invalid signup link. Please use the correct URL.")
+            return False
 
         # Ensure atrs is converted to integer
-        # try:
-        #     customer_id = int(atrs)
-        # except ValueError:
-        #     st.error("Invalid customer ID format.")
-        #     return False
+        try:
+            customer_id = int(atrs)
+        except ValueError:
+            st.error("Invalid customer ID format.")
+            return False
 
         conn = get_db_connection()
         if not conn:
@@ -303,6 +303,14 @@ def signup(username, email, password, confirm_password):
         cur = conn.cursor()
         
         try:
+            cur.execute("""
+                SELECT id FROM users WHERE customer_id = %s
+            """, (customer_id,))
+            
+            existing_user = cur.fetchone()
+            if existing_user:
+                st.error("This marketplace subscription is already in use")
+                return False
             # Check if email already exists
             cur.execute(
                 "SELECT email FROM users WHERE email = %s",
