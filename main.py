@@ -305,7 +305,7 @@ def signup(username, email, password, confirm_password):
         try:
             
             cur.execute("""
-                SELECT id FROM users WHERE customer_id = %s
+                SELECT id FROM product_customers WHERE customer_id = %s
             """, (marketplace_id,))
             
             existing_user = cur.fetchone()
