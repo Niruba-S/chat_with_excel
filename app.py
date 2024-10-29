@@ -588,9 +588,9 @@ def home_page():
 2.	Identify the top 5 customers based on total sales.
 
 """
-    if not aws_access_key_id or not aws_secret_access_key:
-        st.error("AWS credentials are not set. Please set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.")
-        st.stop()
+    # if not aws_access_key_id or not aws_secret_access_key:
+    #     st.error("AWS credentials are not set. Please set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.")
+    #     st.stop()
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "file_uploaded" not in st.session_state:
