@@ -152,9 +152,7 @@ update_user_customer_id()
 try:
     bedrock = boto3.client(
         service_name='bedrock-runtime',
-        region_name=aws_region,
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key
+        region_name='us-east-1',
     )
 except Exception as e:
     st.error(f"Error initializing AWS Bedrock client: {str(e)}")
