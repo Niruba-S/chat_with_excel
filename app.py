@@ -144,9 +144,9 @@ def update_user_customer_id():
 update_user_customer_id()
 
 
-if not aws_access_key_id or not aws_secret_access_key:
-    st.error("AWS credentials are not set. Please set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.")
-    st.stop()
+# if not aws_access_key_id or not aws_secret_access_key:
+#     st.error("AWS credentials are not set. Please set the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables.")
+#     st.stop()
 
 # Initialize AWS Bedrock client
 try:
